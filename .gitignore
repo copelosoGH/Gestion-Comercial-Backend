@@ -1,0 +1,37 @@
+# Dependencias (Nunca se suben, son pesadas y se bajan con 'npm install')
+node_modules/
+jspm_packages/
+web_modules/
+
+# Variables de entorno y secretos (¡SÚPER IMPORTANTES! Mantienen a salvo tus claves de Neon)
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+*.env
+
+# Logs del sistema (Historiales de errores de npm)
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Archivos del Sistema Operativo
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Configuración de Editores de Código (Opcional, pero recomendado)
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

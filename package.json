@@ -1,0 +1,33 @@
+{
+  "name": "gestion-comercial-backend",
+  "version": "0.1.0",
+  "description": "API de gestión comercial para polirubro (stock multi-ubicación + cuenta corriente FIFO)",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.19.2",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "multer": "^2.2.0",
+    "nodemon": "^3.1.14",
+    "pg": "^8.12.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/copelosoGH/Gestion-Comercial-Backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/copelosoGH/Gestion-Comercial-Backend/issues"
+  },
+  "homepage": "https://github.com/copelosoGH/Gestion-Comercial-Backend#readme"
+}
