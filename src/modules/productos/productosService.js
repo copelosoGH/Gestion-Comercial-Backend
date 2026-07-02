@@ -106,3 +106,49 @@ export async function actualizarProducto(idProducto, datos) {
   // Post-commit: devuelvo el detalle ya actualizado.
   return obtenerProducto(idProducto);
 }
+
+/**
+ * Alta de un producto con su primera variante, de forma atómica.
+ * Crea producto + variante + existencias en 0 (sin stock inicial: el stock
+ * entra por reposición o ajuste). Valida la clasificación contra la base.
+ */
+export async function crearProducto(datos) {
+  const idProducto = await withTransaction(async (client) => {
+    if (!(await productosRepository.existeRubro(client, datos.idRubro))) {
+      throw ApiError.badRequest('El rubro indicado no existe.');
+    }
+    if (
+      datos.idSubrubro !== null &&
+      !(await productosRepository.subrubroPerteneceARubro(client, datos.idSubrubro, datos.idRubro))
+    ) {
+      throw ApiError.badRequest('El subrubro no existe o no pertenece al rubro indicado.');
+    }
+    if (datos.idMarca !== null && !(await productosRepository.existeMarca(client, datos.idMarca))) {
+      throw ApiError.badRequest('La marca indicada no existe.');
+    }
+
+    const nuevoIdProducto = await productosRepository.crearProducto(client, datos);
+    const idVariante = await productosRepository.crearVariante(client, nuevoIdProducto, datos.variante);
+    await productosRepository.crearExistenciasIniciales(client, idVariante);
+
+    return nuevoIdProducto;
+  });
+
+  return obtenerProducto(idProducto);
+}
+
+/** Baja lógica del producto (y de sus variantes). No borra nada físicamente. */
+export async function darDeBajaProducto(idProducto) {
+  await withTransaction(async (client) => {
+    const estado = await productosRepository.obtenerEstadoProducto(client, idProducto);
+    if (!estado) {
+      throw ApiError.notFound('Producto no encontrado');
+    }
+    if (!estado.activo) {
+      throw ApiError.conflict('El producto ya está dado de baja.');
+    }
+    await productosRepository.darDeBajaProducto(client, idProducto);
+  });
+
+  return { idProducto, activo: false };
+}

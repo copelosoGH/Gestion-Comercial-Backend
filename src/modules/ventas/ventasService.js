@@ -1,6 +1,7 @@
 import { ApiError } from '../../utils/apiError.js';
 import { withTransaction } from '../../config/db.js';
 import * as ventasRepository from './ventasRepository.js';
+import * as stockRepository from '../stock/stockRepository.js';
 
 const UBICACION_POR_DEFECTO = 'Local';
 
@@ -25,14 +26,14 @@ const redondear = (n) => Math.round(Number(n) * 100) / 100;
 export async function crearVenta(datos) {
   const idVenta = await withTransaction(async (client) => {
     // 1. Usuario que registra (más adelante vendrá del login).
-    if (!(await ventasRepository.existeUsuario(client, datos.idUsuario))) {
+    if (!(await stockRepository.existeUsuario(client, datos.idUsuario))) {
       throw ApiError.badRequest('El usuario indicado no existe.');
     }
 
     // 2. Ubicación de salida (Local por defecto).
     const idUbicacion = datos.idUbicacion
-      ? await ventasRepository.obtenerIdUbicacionPorId(client, datos.idUbicacion)
-      : await ventasRepository.obtenerIdUbicacionPorNombre(client, UBICACION_POR_DEFECTO);
+      ? await stockRepository.obtenerIdUbicacionPorId(client, datos.idUbicacion)
+      : await stockRepository.obtenerIdUbicacionPorNombre(client, UBICACION_POR_DEFECTO);
     if (!idUbicacion) {
       throw ApiError.badRequest('La ubicación indicada no existe.');
     }
@@ -49,8 +50,8 @@ export async function crearVenta(datos) {
         throw ApiError.badRequest(`La variante ${item.idVariante} no existe o está inactiva.`);
       }
 
-      await ventasRepository.asegurarExistencia(client, item.idVariante, idUbicacion);
-      const disponible = await ventasRepository.bloquearExistencia(client, item.idVariante, idUbicacion);
+      await stockRepository.asegurarExistencia(client, item.idVariante, idUbicacion);
+      const disponible = await stockRepository.bloquearExistencia(client, item.idVariante, idUbicacion);
 
       if (!PERMITIR_STOCK_NEGATIVO && disponible < item.cantidad) {
         throw ApiError.conflict(
@@ -108,20 +109,20 @@ export async function crearVenta(datos) {
     }
 
     // 8. Libro mayor de stock + descuento de existencia.
-    const idMovimiento = await ventasRepository.insertarMovimientoStock(client, {
+    const idMovimiento = await stockRepository.insertarMovimientoStock(client, {
       idUsuario: datos.idUsuario,
       idVenta: venta.idVenta,
       tipo: 'VENTA',
     });
     for (const linea of lineas) {
-      await ventasRepository.insertarMovimientoDetalle(client, idMovimiento, {
+      await stockRepository.insertarMovimientoDetalle(client, idMovimiento, {
         idVariante: linea.idVariante,
         idUbicacion,
         cantidad: -linea.cantidad, // egreso => negativo
         costoUnitario: linea.costoUnitario,
         precioUnitario: linea.precioUnitario,
       });
-      await ventasRepository.descontarExistencia(client, linea.idVariante, idUbicacion, linea.cantidad);
+      await stockRepository.descontarExistencia(client, linea.idVariante, idUbicacion, linea.cantidad);
     }
 
     // 9. Fiado: remito + saldo del cliente.
@@ -188,7 +189,7 @@ export async function listarVentas(filtros) {
  */
 export async function anularVenta(idVenta, datos) {
   await withTransaction(async (client) => {
-    if (!(await ventasRepository.existeUsuario(client, datos.idUsuario))) {
+    if (!(await stockRepository.existeUsuario(client, datos.idUsuario))) {
       throw ApiError.badRequest('El usuario indicado no existe.');
     }
 
@@ -210,22 +211,22 @@ export async function anularVenta(idVenta, datos) {
 
     // Reversa de stock por el libro mayor.
     const lineas = await ventasRepository.obtenerLineasMovimientoVenta(client, idVenta);
-    const idMovimiento = await ventasRepository.insertarMovimientoStock(client, {
+    const idMovimiento = await stockRepository.insertarMovimientoStock(client, {
       idUsuario: datos.idUsuario,
       idVenta,
       tipo: 'ANULACION_VENTA',
     });
     for (const linea of lineas) {
       const cantidadReversa = -linea.cantidad; // la venta restó (negativo) => devolvemos (positivo)
-      await ventasRepository.bloquearExistencia(client, linea.idVariante, linea.idUbicacion);
-      await ventasRepository.insertarMovimientoDetalle(client, idMovimiento, {
+      await stockRepository.bloquearExistencia(client, linea.idVariante, linea.idUbicacion);
+      await stockRepository.insertarMovimientoDetalle(client, idMovimiento, {
         idVariante: linea.idVariante,
         idUbicacion: linea.idUbicacion,
         cantidad: cantidadReversa,
         costoUnitario: linea.costoUnitario,
         precioUnitario: linea.precioUnitario,
       });
-      await ventasRepository.aumentarExistencia(client, linea.idVariante, linea.idUbicacion, cantidadReversa);
+      await stockRepository.aumentarExistencia(client, linea.idVariante, linea.idUbicacion, cantidadReversa);
     }
 
     // Reversa de fiado (remito intacto).

@@ -71,17 +71,108 @@ export async function alertasGondola() {
   return rows;
 }
 
-
 // =====================================================================
-//  Primitivas de stock compartidas entre módulos (ventas, reposición,
-//  ajustes, transferencias). Todas operan DENTRO de una transacción
-//  (reciben el `client`), porque tocan el inventario.
-//
-//  Regla de oro: el stock SOLO cambia generando movimientos en el libro
-//  mayor (movimiento_stock / movimiento_stock_detalle) y actualizando el
-//  cache de existencia en la misma transacción.
+//  Consulta de existencias por producto / ubicación
 // =====================================================================
 
+function construirFiltrosExistencias({ busqueda, idRubro, idUbicacion }) {
+  const condiciones = [];
+  const params = [];
+
+  if (idRubro) {
+    params.push(idRubro);
+    condiciones.push(`p.id_rubro = $${params.length}`);
+  }
+  if (busqueda) {
+    params.push(`%${busqueda}%`);
+    const i = params.length;
+    condiciones.push(`(
+      v.descripcion_completa ILIKE $${i}
+      OR p.descripcion_base ILIKE $${i}
+      OR v.codigo_barras ILIKE $${i}
+    )`);
+  }
+  if (idUbicacion) {
+    params.push(idUbicacion);
+    condiciones.push(`EXISTS (
+      SELECT 1 FROM existencia e2
+      WHERE e2.id_variante = v.id_variante
+        AND e2.id_ubicacion = $${params.length}
+        AND e2.cantidad <> 0
+    )`);
+  }
+
+  const clausula = condiciones.length ? ' AND ' + condiciones.join(' AND ') : '';
+  return { clausula, params };
+}
+
+export async function listarExistencias({ busqueda, idRubro, idUbicacion, limite, offset }) {
+  const { clausula, params } = construirFiltrosExistencias({ busqueda, idRubro, idUbicacion });
+  const pLimite = params.length + 1;
+  const pOffset = params.length + 2;
+
+  const sql = `
+    SELECT
+      v.id_variante          AS "idVariante",
+      v.descripcion_completa AS "descripcion",
+      v.codigo_barras        AS "codigoBarras",
+      p.descripcion_base     AS "producto",
+      r.nombre               AS "rubro",
+      v.stock_minimo_total::float        AS "stockMinimoTotal",
+      COALESCE(SUM(e.cantidad), 0)::float AS "stockTotal"
+    FROM producto_variante v
+    JOIN producto p ON p.id_producto = v.id_producto
+    JOIN rubro r    ON r.id_rubro = p.id_rubro
+    LEFT JOIN existencia e ON e.id_variante = v.id_variante
+    WHERE v.activo ${clausula}
+    GROUP BY v.id_variante, v.descripcion_completa, v.codigo_barras,
+             p.descripcion_base, r.nombre, v.stock_minimo_total
+    ORDER BY p.descripcion_base, v.id_variante
+    LIMIT $${pLimite} OFFSET $${pOffset}
+  `;
+  const { rows } = await query(sql, [...params, limite, offset]);
+  return rows;
+}
+
+export async function contarExistencias(filtros) {
+  const { clausula, params } = construirFiltrosExistencias(filtros);
+  const sql = `
+    SELECT COUNT(*)::int AS total FROM (
+      SELECT v.id_variante
+      FROM producto_variante v
+      JOIN producto p ON p.id_producto = v.id_producto
+      WHERE v.activo ${clausula}
+      GROUP BY v.id_variante
+    ) sub
+  `;
+  const { rows } = await query(sql, params);
+  return rows[0].total;
+}
+
+/** Desglose de existencia por ubicación para un conjunto de variantes. */
+export async function obtenerExistenciasDeVariantes(idsVariantes) {
+  if (idsVariantes.length === 0) return [];
+  const sql = `
+    SELECT
+      e.id_variante         AS "idVariante",
+      u.id_ubicacion        AS "idUbicacion",
+      u.nombre              AS "ubicacion",
+      e.cantidad::float     AS "cantidad",
+      e.stock_minimo::float AS "stockMinimo"
+    FROM existencia e
+    JOIN ubicacion u ON u.id_ubicacion = e.id_ubicacion
+    WHERE e.id_variante = ANY($1::int[])
+    ORDER BY e.id_variante, u.id_ubicacion
+  `;
+  const { rows } = await query(sql, [idsVariantes]);
+  return rows;
+}
+
+// =====================================================================
+//  Primitivas de stock compartidas (existencia + libro mayor).
+//  Operan DENTRO de una transacción (reciben el client).
+//  Las usan ventas, reposición y las operaciones de este mismo módulo.
+// =====================================================================
 export async function existeUsuario(client, idUsuario) {
   const { rows } = await client.query(
     'SELECT 1 FROM usuario WHERE id_usuario = $1 AND activo',
@@ -178,4 +269,3 @@ export async function insertarMovimientoDetalle(client, idMovimiento, d) {
     [idMovimiento, d.idVariante, d.idUbicacion, d.cantidad, d.costoUnitario ?? null, d.precioUnitario ?? null],
   );
 }
-

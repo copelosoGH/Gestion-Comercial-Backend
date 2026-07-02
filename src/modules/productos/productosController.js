@@ -23,3 +23,17 @@ export const actualizar = asyncHandler(async (req, res) => {
   const producto = await productosService.actualizarProducto(idProducto, datos);
   res.json(producto);
 });
+
+/** POST /api/productos -> alta anidada (producto + primera variante). */
+export const crear = asyncHandler(async (req, res) => {
+  const datos = validacion.validarNuevoProducto(req.body);
+  const producto = await productosService.crearProducto(datos);
+  res.status(201).json(producto);
+});
+
+/** DELETE /api/productos/:id -> baja lógica. */
+export const darDeBaja = asyncHandler(async (req, res) => {
+  const idProducto = validacion.parsearId(req.params.id);
+  const resultado = await productosService.darDeBajaProducto(idProducto);
+  res.json(resultado);
+});

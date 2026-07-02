@@ -1,6 +1,6 @@
 import { ApiError } from '../../utils/apiError.js';
 import { withTransaction } from '../../config/db.js';
-import * as stockRepository from '../../shared/stockRepository.js';
+import * as stockRepository from '../stock/stockRepository.js';
 import * as reposicionRepository from './reposicionRepository.js';
 
 const UBICACION_POR_DEFECTO = 'Local';

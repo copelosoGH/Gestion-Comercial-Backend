@@ -1,4 +1,4 @@
-import { query } from "../../config/db.js";
+import { query } from '../../config/db.js';
 
 // ---------------------------------------------------------------------
 // Arma las condiciones WHERE comunes a listar y contar, devolviendo la
@@ -27,9 +27,7 @@ function construirFiltros({ busqueda, idRubro }) {
     )`);
   }
 
-  const clausula = condiciones.length
-    ? " AND " + condiciones.join(" AND ")
-    : "";
+  const clausula = condiciones.length ? ' AND ' + condiciones.join(' AND ') : '';
   return { clausula, params };
 }
 
@@ -153,7 +151,7 @@ export async function obtenerProductoParaActualizar(client, idProducto) {
 
 export async function existeRubro(client, idRubro) {
   const { rows } = await client.query(
-    "SELECT 1 FROM rubro WHERE id_rubro = $1 AND activo",
+    'SELECT 1 FROM rubro WHERE id_rubro = $1 AND activo',
     [idRubro],
   );
   return rows.length > 0;
@@ -161,7 +159,7 @@ export async function existeRubro(client, idRubro) {
 
 export async function subrubroPerteneceARubro(client, idSubrubro, idRubro) {
   const { rows } = await client.query(
-    "SELECT 1 FROM subrubro WHERE id_subrubro = $1 AND id_rubro = $2 AND activo",
+    'SELECT 1 FROM subrubro WHERE id_subrubro = $1 AND id_rubro = $2 AND activo',
     [idSubrubro, idRubro],
   );
   return rows.length > 0;
@@ -169,7 +167,7 @@ export async function subrubroPerteneceARubro(client, idSubrubro, idRubro) {
 
 export async function existeMarca(client, idMarca) {
   const { rows } = await client.query(
-    "SELECT 1 FROM marca WHERE id_marca = $1 AND activo",
+    'SELECT 1 FROM marca WHERE id_marca = $1 AND activo',
     [idMarca],
   );
   return rows.length > 0;
@@ -178,79 +176,10 @@ export async function existeMarca(client, idMarca) {
 /** Devuelve un Set con los ids de las variantes activas del producto. */
 export async function obtenerIdsVariantes(client, idProducto) {
   const { rows } = await client.query(
-    "SELECT id_variante FROM producto_variante WHERE id_producto = $1 AND activo",
+    'SELECT id_variante FROM producto_variante WHERE id_producto = $1 AND activo',
     [idProducto],
   );
   return new Set(rows.map((r) => r.id_variante));
-}
-
-// ===================== ALTA Y BAJA =====================
-
-export async function crearProducto(client, datos) {
-  const { rows } = await client.query(
-    `INSERT INTO producto (id_rubro, id_subrubro, id_marca, descripcion_base)
-     VALUES ($1, $2, $3, $4)
-     RETURNING id_producto AS "idProducto"`,
-    [datos.idRubro, datos.idSubrubro, datos.idMarca, datos.descripcion],
-  );
-  return rows[0].idProducto;
-}
-
-export async function crearVariante(client, idProducto, v) {
-  const { rows } = await client.query(
-    `INSERT INTO producto_variante
-       (id_producto, descripcion_completa, fragancia, dimension, presentacion,
-        simula_a, codigo_barras, precio_costo, precio_venta, stock_minimo_total,
-        unidad_venta, unidades_por_caja)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-     RETURNING id_variante AS "idVariante"`,
-    [
-      idProducto,
-      v.descripcion,
-      v.fragancia,
-      v.dimension,
-      v.presentacion,
-      v.simulaA,
-      v.codigoBarras,
-      v.precioCosto,
-      v.precioVenta,
-      v.stockMinimoTotal,
-      v.unidadVenta,
-      v.unidadesPorCaja,
-    ],
-  );
-  return rows[0].idVariante;
-}
-
-/** Crea las filas de existencia en 0 para todas las ubicaciones activas. */
-export async function crearExistenciasIniciales(client, idVariante) {
-  await client.query(
-    `INSERT INTO existencia (id_variante, id_ubicacion, cantidad)
-     SELECT $1, id_ubicacion, 0 FROM ubicacion WHERE activo
-     ON CONFLICT (id_variante, id_ubicacion) DO NOTHING`,
-    [idVariante],
-  );
-}
-
-/** Devuelve el estado (existe / activo) del producto, con lock. */
-export async function obtenerEstadoProducto(client, idProducto) {
-  const { rows } = await client.query(
-    'SELECT id_producto AS "idProducto", activo AS "activo" FROM producto WHERE id_producto = $1 FOR UPDATE',
-    [idProducto],
-  );
-  return rows[0] ?? null;
-}
-
-/** Baja lógica del producto y de todas sus variantes. */
-export async function darDeBajaProducto(client, idProducto) {
-  await client.query(
-    "UPDATE producto SET activo = FALSE WHERE id_producto = $1",
-    [idProducto],
-  );
-  await client.query(
-    "UPDATE producto_variante SET activo = FALSE WHERE id_producto = $1",
-    [idProducto],
-  );
 }
 
 /** Actualiza la cabecera del producto. */
@@ -303,4 +232,58 @@ export async function actualizarVariante(client, idVariante, v) {
     v.unidadesPorCaja,
     idVariante,
   ]);
+}
+
+// ===================== ALTA Y BAJA =====================
+
+export async function crearProducto(client, datos) {
+  const { rows } = await client.query(
+    `INSERT INTO producto (id_rubro, id_subrubro, id_marca, descripcion_base)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id_producto AS "idProducto"`,
+    [datos.idRubro, datos.idSubrubro, datos.idMarca, datos.descripcion],
+  );
+  return rows[0].idProducto;
+}
+
+export async function crearVariante(client, idProducto, v) {
+  const { rows } = await client.query(
+    `INSERT INTO producto_variante
+       (id_producto, descripcion_completa, fragancia, dimension, presentacion,
+        simula_a, codigo_barras, precio_costo, precio_venta, stock_minimo_total,
+        unidad_venta, unidades_por_caja)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+     RETURNING id_variante AS "idVariante"`,
+    [
+      idProducto, v.descripcion, v.fragancia, v.dimension, v.presentacion,
+      v.simulaA, v.codigoBarras, v.precioCosto, v.precioVenta, v.stockMinimoTotal,
+      v.unidadVenta, v.unidadesPorCaja,
+    ],
+  );
+  return rows[0].idVariante;
+}
+
+/** Crea las filas de existencia en 0 para todas las ubicaciones activas. */
+export async function crearExistenciasIniciales(client, idVariante) {
+  await client.query(
+    `INSERT INTO existencia (id_variante, id_ubicacion, cantidad)
+     SELECT $1, id_ubicacion, 0 FROM ubicacion WHERE activo
+     ON CONFLICT (id_variante, id_ubicacion) DO NOTHING`,
+    [idVariante],
+  );
+}
+
+/** Devuelve el estado (existe / activo) del producto, con lock. */
+export async function obtenerEstadoProducto(client, idProducto) {
+  const { rows } = await client.query(
+    'SELECT id_producto AS "idProducto", activo AS "activo" FROM producto WHERE id_producto = $1 FOR UPDATE',
+    [idProducto],
+  );
+  return rows[0] ?? null;
+}
+
+/** Baja lógica del producto y de todas sus variantes. */
+export async function darDeBajaProducto(client, idProducto) {
+  await client.query('UPDATE producto SET activo = FALSE WHERE id_producto = $1', [idProducto]);
+  await client.query('UPDATE producto_variante SET activo = FALSE WHERE id_producto = $1', [idProducto]);
 }

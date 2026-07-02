@@ -142,3 +142,74 @@ function idOpcional(valor, campo) {
   if (valor === undefined || valor === null || valor === '') return null;
   return parsearId(valor, campo);
 }
+
+// ===================== VALIDACIÓN DE ALTA =====================
+
+/**
+ * Valida el cuerpo del POST /api/productos (alta anidada).
+ * { descripcion, idRubro, idSubrubro?, idMarca?, variante: { ... } }
+ */
+export function validarNuevoProducto(body) {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    throw ApiError.badRequest('El cuerpo de la petición debe ser un objeto.');
+  }
+
+  const descripcion = exigirTexto(body.descripcion, 'descripcion', MAX_DESCRIPCION_PRODUCTO);
+  const idRubro = parsearId(body.idRubro, 'idRubro');
+  const idSubrubro = idOpcional(body.idSubrubro, 'idSubrubro');
+  const idMarca = idOpcional(body.idMarca, 'idMarca');
+
+  if (typeof body.variante !== 'object' || body.variante === null || Array.isArray(body.variante)) {
+    throw ApiError.badRequest('Se requiere el objeto "variante" para dar de alta el producto.');
+  }
+  const variante = validarVarianteNueva(body.variante);
+  // Si no se cargó descripción de la variante, toma la del producto.
+  if (variante.descripcion === null) variante.descripcion = descripcion;
+
+  return { descripcion, idRubro, idSubrubro, idMarca, variante };
+}
+
+/** Valida una variante nueva (sin idVariante), con defaults amables. */
+export function validarVarianteNueva(item) {
+  if (typeof item !== 'object' || item === null || Array.isArray(item)) {
+    throw ApiError.badRequest('La variante debe ser un objeto.');
+  }
+  return {
+    descripcion: textoOpcional(item.descripcion, 'variante.descripcion', MAX_DESCRIPCION_VARIANTE),
+    fragancia: textoOpcional(item.fragancia, 'variante.fragancia', 60),
+    dimension: textoOpcional(item.dimension, 'variante.dimension', 60),
+    presentacion: textoOpcional(item.presentacion, 'variante.presentacion', 60),
+    simulaA: textoOpcional(item.simulaA, 'variante.simulaA', 80),
+    codigoBarras: textoOpcional(item.codigoBarras, 'variante.codigoBarras', 50),
+    precioCosto: numeroNoNegativoConDefecto(item.precioCosto, 'variante.precioCosto', 0),
+    precioVenta: numeroNoNegativoConDefecto(item.precioVenta, 'variante.precioVenta', 0),
+    stockMinimoTotal: numeroNoNegativoConDefecto(item.stockMinimoTotal, 'variante.stockMinimoTotal', 0),
+    unidadVenta: textoConDefecto(item.unidadVenta, 'variante.unidadVenta', 20, 'UNIDAD'),
+    unidadesPorCaja: enteroPositivoConDefecto(item.unidadesPorCaja, 'variante.unidadesPorCaja', 1),
+  };
+}
+
+// ---- helpers con valor por defecto (para el alta) ----
+
+function numeroNoNegativoConDefecto(valor, campo, porDefecto) {
+  if (valor === undefined || valor === null || valor === '') return porDefecto;
+  const n = Number(valor);
+  if (!Number.isFinite(n) || n < 0) {
+    throw ApiError.badRequest(`El campo "${campo}" debe ser un número mayor o igual a 0.`);
+  }
+  return n;
+}
+
+function enteroPositivoConDefecto(valor, campo, porDefecto) {
+  if (valor === undefined || valor === null || valor === '') return porDefecto;
+  const n = Number(valor);
+  if (!Number.isInteger(n) || n < 1) {
+    throw ApiError.badRequest(`El campo "${campo}" debe ser un entero mayor o igual a 1.`);
+  }
+  return n;
+}
+
+function textoConDefecto(valor, campo, maxLargo, porDefecto) {
+  const limpio = textoOpcional(valor, campo, maxLargo);
+  return limpio === null ? porDefecto : limpio;
+}

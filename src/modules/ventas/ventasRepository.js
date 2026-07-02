@@ -59,36 +59,12 @@ export async function obtenerPagosVenta(idVenta) {
 //  VERIFICACIONES / RESOLUCIONES (dentro de transacción, usan client)
 // =====================================================================
 
-export async function existeUsuario(client, idUsuario) {
-  const { rows } = await client.query(
-    'SELECT 1 FROM usuario WHERE id_usuario = $1 AND activo',
-    [idUsuario],
-  );
-  return rows.length > 0;
-}
-
 export async function existeClienteActivo(client, idCliente) {
   const { rows } = await client.query(
     'SELECT 1 FROM cliente WHERE id_cliente = $1 AND activo',
     [idCliente],
   );
   return rows.length > 0;
-}
-
-export async function obtenerIdUbicacionPorNombre(client, nombre) {
-  const { rows } = await client.query(
-    'SELECT id_ubicacion FROM ubicacion WHERE nombre = $1 AND activo',
-    [nombre],
-  );
-  return rows[0]?.id_ubicacion ?? null;
-}
-
-export async function obtenerIdUbicacionPorId(client, idUbicacion) {
-  const { rows } = await client.query(
-    'SELECT id_ubicacion FROM ubicacion WHERE id_ubicacion = $1 AND activo',
-    [idUbicacion],
-  );
-  return rows[0]?.id_ubicacion ?? null;
 }
 
 /** Trae la variante activa con su precio de venta y costo actuales. */
@@ -109,37 +85,6 @@ export async function obtenerVarianteParaVenta(client, idVariante) {
 // =====================================================================
 //  ESCRITURAS (dentro de transacción)
 // =====================================================================
-
-/** Crea la fila de existencia en 0 si todavía no existe (para poder lockearla). */
-export async function asegurarExistencia(client, idVariante, idUbicacion) {
-  await client.query(
-    `INSERT INTO existencia (id_variante, id_ubicacion, cantidad)
-     VALUES ($1, $2, 0)
-     ON CONFLICT (id_variante, id_ubicacion) DO NOTHING`,
-    [idVariante, idUbicacion],
-  );
-}
-
-/** Bloquea la fila de existencia (FOR UPDATE) y devuelve la cantidad disponible. */
-export async function bloquearExistencia(client, idVariante, idUbicacion) {
-  const { rows } = await client.query(
-    `SELECT cantidad::float AS cantidad
-     FROM existencia
-     WHERE id_variante = $1 AND id_ubicacion = $2
-     FOR UPDATE`,
-    [idVariante, idUbicacion],
-  );
-  return rows[0]?.cantidad ?? 0;
-}
-
-export async function descontarExistencia(client, idVariante, idUbicacion, cantidad) {
-  await client.query(
-    `UPDATE existencia
-       SET cantidad = cantidad - $3
-     WHERE id_variante = $1 AND id_ubicacion = $2`,
-    [idVariante, idUbicacion, cantidad],
-  );
-}
 
 export async function insertarVenta(client, { idUsuario, idCliente, total, observacion }) {
   const { rows } = await client.query(
@@ -164,25 +109,6 @@ export async function insertarVentaPago(client, idVenta, pago) {
     `INSERT INTO venta_pago (id_venta, medio_pago, monto)
      VALUES ($1, $2, $3)`,
     [idVenta, pago.medioPago, pago.monto],
-  );
-}
-
-export async function insertarMovimientoStock(client, { idUsuario, idVenta, tipo }) {
-  const { rows } = await client.query(
-    `INSERT INTO movimiento_stock (id_usuario, tipo_movimiento, id_venta)
-     VALUES ($1, $2, $3)
-     RETURNING id_movimiento_stock AS "idMovimiento"`,
-    [idUsuario, tipo, idVenta],
-  );
-  return rows[0].idMovimiento;
-}
-
-export async function insertarMovimientoDetalle(client, idMovimiento, d) {
-  await client.query(
-    `INSERT INTO movimiento_stock_detalle
-       (id_movimiento_stock, id_variante, id_ubicacion, cantidad, costo_unitario, precio_unitario)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [idMovimiento, d.idVariante, d.idUbicacion, d.cantidad, d.costoUnitario, d.precioUnitario],
   );
 }
 
@@ -315,15 +241,6 @@ export async function obtenerRemitoDeVenta(client, idVenta) {
     [idVenta],
   );
   return rows[0] ?? null;
-}
-
-export async function aumentarExistencia(client, idVariante, idUbicacion, cantidad) {
-  await client.query(
-    `UPDATE existencia
-       SET cantidad = cantidad + $3
-     WHERE id_variante = $1 AND id_ubicacion = $2`,
-    [idVariante, idUbicacion, cantidad],
-  );
 }
 
 export async function anularRemito(client, idRemito) {
