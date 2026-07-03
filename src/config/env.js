@@ -19,6 +19,10 @@ export const config = {
     connectionString: required('DATABASE_URL'),
     poolMax: Number(process.env.DB_POOL_MAX ?? 10),
   },
+  jwt: {
+    secret: required('JWT_SECRET'),
+    expiresIn: process.env.JWT_EXPIRES ?? '12h',
+  },
 };
 
 export const isProd = config.env === 'production';
