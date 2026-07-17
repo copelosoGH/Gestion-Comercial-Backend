@@ -55,11 +55,11 @@ function construirFiltros({ desde, hasta, idProveedor, incluirAnuladas }) {
   const params = [];
   if (desde) {
     params.push(desde);
-    condiciones.push(`rp.fecha >= $${params.length}::date`);
+    condiciones.push(`(rp.fecha AT TIME ZONE 'America/Argentina/Buenos_Aires') >= $${params.length}::date`);
   }
   if (hasta) {
     params.push(hasta);
-    condiciones.push(`rp.fecha < ($${params.length}::date + 1)`);
+    condiciones.push(`(rp.fecha AT TIME ZONE 'America/Argentina/Buenos_Aires') < ($${params.length}::date + 1)`);
   }
   if (idProveedor) {
     params.push(idProveedor);

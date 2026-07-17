@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { query, closePool } from '../src/config/db.js';
+import { query, closePool } from '../config/db.js';
 
 const [, , nombre, usuarioLogin, password, rol = 'DUENO'] = process.argv;
 

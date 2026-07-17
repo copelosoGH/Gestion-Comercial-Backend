@@ -142,11 +142,11 @@ function construirFiltrosVentas({ desde, hasta, idUsuario, idCliente, incluirAnu
 
   if (desde) {
     params.push(desde);
-    condiciones.push(`ve.fecha >= $${params.length}::date`);
+    condiciones.push(`(ve.fecha AT TIME ZONE 'America/Argentina/Buenos_Aires') >= $${params.length}::date`);
   }
   if (hasta) {
     params.push(hasta);
-    condiciones.push(`ve.fecha < ($${params.length}::date + 1)`); // hasta inclusive
+    condiciones.push(`(ve.fecha AT TIME ZONE 'America/Argentina/Buenos_Aires') < ($${params.length}::date + 1)`);
   }
   if (idUsuario) {
     params.push(idUsuario);

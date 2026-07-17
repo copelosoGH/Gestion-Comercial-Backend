@@ -9,11 +9,11 @@ export async function masVendidos({ desde, hasta, limite }) {
   const params = [];
   if (desde) {
     params.push(desde);
-    condiciones.push(`ve.fecha >= $${params.length}::date`);
+    condiciones.push(`(ve.fecha AT TIME ZONE 'America/Argentina/Buenos_Aires') >= $${params.length}::date`);
   }
   if (hasta) {
     params.push(hasta);
-    condiciones.push(`ve.fecha < ($${params.length}::date + 1)`);
+    condiciones.push(`(ve.fecha AT TIME ZONE 'America/Argentina/Buenos_Aires') < ($${params.length}::date + 1)`);
   }
   params.push(limite);
   const pLimite = params.length;
