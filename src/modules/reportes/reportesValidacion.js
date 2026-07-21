@@ -62,3 +62,11 @@ function fechaOpcional(valor, campo) {
   }
   return valor;
 }
+
+/** Filtros de reportes de caja: ?desde&hasta (ambos opcionales) */
+export function parsearFiltrosCaja(query) {
+  return {
+    desde: fechaOpcional(query.desde, 'desde'),
+    hasta: fechaOpcional(query.hasta, 'hasta'),
+  };
+}

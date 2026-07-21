@@ -47,3 +47,19 @@ export const reposicion = asyncHandler(async (req, res) => {
   const reporte = await reportesService.reposicion();
   await responder(res, reporte, formato);
 });
+
+/** GET /api/reportes/resumen-ventas?desde&hasta&formato */
+export const resumenVentas = asyncHandler(async (req, res) => {
+  const filtros = validacion.parsearFiltrosCaja(req.query);
+  const formato = validacion.parsearFormato(req.query);
+  const reporte = await reportesService.resumenVentas(filtros);
+  await responder(res, reporte, formato);
+});
+
+/** GET /api/reportes/ventas-por-metodo?desde&hasta&formato */
+export const ventasPorMetodo = asyncHandler(async (req, res) => {
+  const filtros = validacion.parsearFiltrosCaja(req.query);
+  const formato = validacion.parsearFormato(req.query);
+  const reporte = await reportesService.ventasPorMetodo(filtros);
+  await responder(res, reporte, formato);
+});

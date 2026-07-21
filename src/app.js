@@ -18,6 +18,10 @@ import cuentaCorrienteRoutes from './modules/cuentaCorriente/cuentaCorrienteRout
 import clientesRoutes from './modules/clientes/clientesRoutes.js';
 import proveedoresRoutes from './modules/proveedores/proveedoresRoutes.js';
 import reportesRoutes from './modules/reportes/reportesRoutes.js';
+import usuariosRoutes from './modules/usuarios/usuariosRoutes.js';
+import movimientosRoutes from './modules/movimientos/movimientosRoutes.js';
+import catalogoRoutes from './modules/catalogo/catalogoRoutes.js';
+import ubicacionesRoutes from './modules/ubicaciones/ubicacionesRoutes.js';
 
 export function createApp() {
   const app = express();
@@ -44,6 +48,10 @@ export function createApp() {
   app.use('/api/clientes', clientesRoutes);
   app.use('/api/proveedores', proveedoresRoutes);
   app.use('/api/reportes', reportesRoutes);
+  app.use('/api/usuarios', usuariosRoutes);
+  app.use('/api/movimientos', movimientosRoutes);
+  app.use('/api', catalogoRoutes); // expone /rubros, /subrubros, /marcas
+  app.use('/api/ubicaciones', ubicacionesRoutes);
 
   // 404 y manejo de errores SIEMPRE al final
   app.use(notFound);

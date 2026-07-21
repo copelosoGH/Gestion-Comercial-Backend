@@ -74,3 +74,30 @@ export async function reposicion() {
     filas,
   };
 }
+
+export async function resumenVentas(filtros) {
+  const fila = await reportesRepository.resumenVentas(filtros);
+  return {
+    nombre: 'resumen-ventas',
+    columnas: [
+      { titulo: 'Cantidad de ventas', clave: 'cantidadVentas', ancho: 18 },
+      { titulo: 'Total facturado', clave: 'totalVentas', ancho: 18 },
+      { titulo: 'Promedio por venta', clave: 'promedioVenta', ancho: 18 },
+      { titulo: 'Ganancia', clave: 'ganancia', ancho: 18 },
+    ],
+    filas: [fila],
+  };
+}
+
+export async function ventasPorMetodo(filtros) {
+  const filas = await reportesRepository.ventasPorMetodo(filtros);
+  return {
+    nombre: 'ventas-por-metodo',
+    columnas: [
+      { titulo: 'Medio de pago', clave: 'medioPago', ancho: 20 },
+      { titulo: 'Cantidad de pagos', clave: 'cantidadPagos', ancho: 18 },
+      { titulo: 'Monto', clave: 'monto', ancho: 18 },
+    ],
+    filas,
+  };
+}

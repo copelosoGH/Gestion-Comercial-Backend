@@ -9,11 +9,11 @@ export async function masVendidos({ desde, hasta, limite }) {
   const params = [];
   if (desde) {
     params.push(desde);
-    condiciones.push(`(ve.fecha AT TIME ZONE 'America/Argentina/Buenos_Aires') >= $${params.length}::date`);
+    condiciones.push(`ve.fecha >= $${params.length}::date`);
   }
   if (hasta) {
     params.push(hasta);
-    condiciones.push(`(ve.fecha AT TIME ZONE 'America/Argentina/Buenos_Aires') < ($${params.length}::date + 1)`);
+    condiciones.push(`ve.fecha < ($${params.length}::date + 1)`);
   }
   params.push(limite);
   const pLimite = params.length;
@@ -114,6 +114,70 @@ export async function stockActual({ busqueda, idRubro }) {
     GROUP BY v.id_variante, v.codigo_barras, p.descripcion_base,
              v.descripcion_completa, r.nombre, v.precio_costo
     ORDER BY p.descripcion_base, v.id_variante
+  `;
+  const { rows } = await query(sql, params);
+  return rows;
+}
+
+/**
+ * Resumen de caja: cantidad de ventas, total facturado, promedio por venta
+ * y ganancia (usando el costo real registrado en el movimiento de esa venta,
+ * no el costo actual del producto). Excluye ventas anuladas.
+ */
+export async function resumenVentas({ desde, hasta }) {
+  const condiciones = ['ve.anulada = FALSE'];
+  const params = [];
+  if (desde) {
+    params.push(desde);
+    condiciones.push(`(ve.fecha AT TIME ZONE 'America/Argentina/Buenos_Aires') >= $${params.length}::date`);
+  }
+  if (hasta) {
+    params.push(hasta);
+    condiciones.push(`(ve.fecha AT TIME ZONE 'America/Argentina/Buenos_Aires') < ($${params.length}::date + 1)`);
+  }
+
+  const sql = `
+    SELECT
+      COUNT(DISTINCT ve.id_venta)::int AS "cantidadVentas",
+      COALESCE(SUM(vd.subtotal), 0)::float AS "totalVentas",
+      CASE WHEN COUNT(DISTINCT ve.id_venta) = 0 THEN 0
+           ELSE ROUND((SUM(vd.subtotal) / COUNT(DISTINCT ve.id_venta))::numeric, 2)::float
+      END AS "promedioVenta",
+      COALESCE(SUM(vd.subtotal) - SUM(vd.cantidad * msd.costo_unitario), 0)::float AS "ganancia"
+    FROM venta ve
+    JOIN venta_detalle vd          ON vd.id_venta = ve.id_venta
+    JOIN movimiento_stock ms       ON ms.id_venta = ve.id_venta AND ms.tipo_movimiento = 'VENTA'
+    JOIN movimiento_stock_detalle msd
+      ON msd.id_movimiento_stock = ms.id_movimiento_stock AND msd.id_variante = vd.id_variante
+    WHERE ${condiciones.join(' AND ')}
+  `;
+  const { rows } = await query(sql, params);
+  return rows[0];
+}
+
+/** Ventas agrupadas por medio de pago (efectivo, débito, cta cte, etc). */
+export async function ventasPorMetodo({ desde, hasta }) {
+  const condiciones = ['ve.anulada = FALSE'];
+  const params = [];
+  if (desde) {
+    params.push(desde);
+    condiciones.push(`(ve.fecha AT TIME ZONE 'America/Argentina/Buenos_Aires') >= $${params.length}::date`);
+  }
+  if (hasta) {
+    params.push(hasta);
+    condiciones.push(`(ve.fecha AT TIME ZONE 'America/Argentina/Buenos_Aires') < ($${params.length}::date + 1)`);
+  }
+
+  const sql = `
+    SELECT
+      vp.medio_pago       AS "medioPago",
+      COUNT(*)::int       AS "cantidadPagos",
+      SUM(vp.monto)::float AS "monto"
+    FROM venta_pago vp
+    JOIN venta ve ON ve.id_venta = vp.id_venta
+    WHERE ${condiciones.join(' AND ')}
+    GROUP BY vp.medio_pago
+    ORDER BY SUM(vp.monto) DESC
   `;
   const { rows } = await query(sql, params);
   return rows;
